@@ -89,18 +89,22 @@ class Execute extends Module {
   // - BLTU/BGEU: Unsigned comparison (direct comparison)
   val branchCondition = MuxLookup(funct3, false.B)(
     Seq(
-      // TODO: Implement six branch conditions
-      // Hint: Compare two register data values based on branch type
-      InstructionsTypeB.beq  -> ?,
-      InstructionsTypeB.bne  -> ?,
+      // BEQ: Branch if Equal
+      InstructionsTypeB.beq  -> (io.reg1_data === io.reg2_data),
+      // BNE: Branch if Not Equal
+      InstructionsTypeB.bne  -> (io.reg1_data =/= io.reg2_data),
 
-      // Signed comparison (need conversion to signed type)
-      InstructionsTypeB.blt  -> ?,
-      InstructionsTypeB.bge  -> ?,
+      // Signed comparison (need conversion to signed type using .asSInt)
+      // BLT: Branch if Less Than (Signed)
+      InstructionsTypeB.blt  -> (io.reg1_data.asSInt < io.reg2_data.asSInt),
+      // BGE: Branch if Greater or Equal (Signed)
+      InstructionsTypeB.bge  -> (io.reg1_data.asSInt >= io.reg2_data.asSInt),
 
-      // Unsigned comparison
-      InstructionsTypeB.bltu -> ?,
-      InstructionsTypeB.bgeu -> ?
+      // Unsigned comparison (UInt is unsigned by default in Chisel)
+      // BLTU: Branch if Less Than Unsigned
+      InstructionsTypeB.bltu -> (io.reg1_data < io.reg2_data),
+      // BGEU: Branch if Greater or Equal Unsigned
+      InstructionsTypeB.bgeu -> (io.reg1_data >= io.reg2_data)
     )
   )
   val isBranch = opcode === InstructionTypes.Branch
@@ -118,19 +122,16 @@ class Execute extends Module {
   // - JALR: (rs1 + immediate) & ~1 (register base, clear LSB for alignment)
   //
   // TODO: Complete the following address calculations
-  val branchTarget = ?
-
+  val branchTarget = io.instruction_address + io.immediate
   val jalTarget    = branchTarget  // JAL and Branch use same calculation method
 
   // JALR address calculation:
   //   1. Add register value and immediate
   //   2. Clear LSB (2-byte alignment)
-  val jalrSum      = ?
-
+  val jalrSum      = io.reg1_data + io.immediate
   // TODO: Clear LSB using bit concatenation
   // Hint: Extract upper bits and append zero
-  val jalrTarget   = ?
-
+  val jalrTarget   = Cat(jalrSum(31, 1), 0.U(1.W))
   val branchTaken = isBranch && branchCondition
   io.if_jump_flag := branchTaken || isJal || isJalr
   io.if_jump_address := Mux(
